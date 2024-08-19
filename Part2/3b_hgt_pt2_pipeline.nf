@@ -17,7 +17,7 @@ It is a set of 27 mutated genomes that are all based on the same source genome (
             AG-359-G18_a5_aad0005.fasta
             AG-359-G18_a5_aad0010.fasta
             etc.
-        Where the 'aad' number reflects its average amino acid distance from the source genome (again, caused by simulated amino acid changes, as made by Shayestah)
+        Where the 'aad' number reflects its average amino acid distance from the source genome (again, caused by simulated amino acid changes, as made by Shayesteh)
 
     Note: The pipeline expects genomes with this specific namescheme: [experiment]_aad[number].fasta
 
@@ -31,7 +31,7 @@ III. So what does this pipeline do?
 
 
 IV. What command did I use to run this nextflow job?
-nextflow run 3b_siavash_pt2.nf -profile charlie
+nextflow run 3b_hgt_pt2_pipeline.nf -profile charlie
 
 BTW: ask me (Greg Gavelis, ggavelis@gbigelow.org) for more information if you want to run nextflow yourself.
 */

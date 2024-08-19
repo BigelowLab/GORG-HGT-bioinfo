@@ -5,7 +5,7 @@
 
 echo "launching nextflow pipeline"
 
-cd /mnt/scgc_nfs/lab/ggavelis/analysis/siavash_hgt/aug9_second_round/
+cd /mnt/scgc_nfs/lab/ggavelis/analysis/siavash_hgt/part2
 
 module use /mnt/scgc_nfs/opt/modulefiles/common/
 module load anaconda/2.1.0
@@ -19,6 +19,6 @@ export NXF_CACHE_DIR="/mnt/scgc/scgc_temp/nextflow"
 export NXF_CONDA_ENABLED=true
 export NXF_VER=21.10.4
 
-NXF_VER=21.10.4 nextflow run 3b_siavash_hgt_pt2_pipeline.nf -profile charlie
+NXF_VER=21.10.4 nextflow run 3b_hgt_pt2_pipeline.nf -profile charlie
 
 echo "done"
