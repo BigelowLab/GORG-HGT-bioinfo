@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 params.dev = false // Lets user testrun nextflow command (by adding flag '--dev') which will have this pipeline run on JUST ONE SAG (again, as a test)
 params.num_inputs = 2
 
-params.outdir = "results"
+params.outdir = "2000_maxhits"
 params.prokka = "/mnt/scgc_nfs/ref/uniprot_swissprot_prokka.fasta"
 
 
@@ -113,7 +113,7 @@ process BLAST_ORFS_TO_SELF {
     blastn -query "!{ID}_orfs.fasta" \
     -db "!{ID}_orfs.fasta" \
     -outfmt '6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen' \
-    -num_threads !{task.cpus} -max_target_seqs 10 \
+    -num_threads !{task.cpus} -max_target_seqs 2000 \
     -out headerless_blast.tsv
     
     cat headerless_blast.tsv >> "!{ID}_blast.tsv"
