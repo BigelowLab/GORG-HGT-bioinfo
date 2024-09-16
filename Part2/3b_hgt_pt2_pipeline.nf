@@ -4,22 +4,22 @@ nextflow.enable.dsl=2
 /*
 I. Inputs:
 
-Expects an input folder called ./input/ that contains several tarfiles (e.g. AG-359-G18_a5.tar.gz, AG-359-G18_a22.tar.gz, ).
+Expects an input folder called ./gzipped_experiments/ that contains several tarfiles (e.g. AG-359-G18_a5.tar.gz, AG-359-G18_a22.tar.gz, ).
 
 Each of these tarfiles is a zipped "experiment" folder. (There are 58 experiments in all.)
 
 II. What is an experiment?
 
-It is a set of 27 mutated genomes that are all based on the same source genome (e.g. named 'AG-359-G18_a5') but with different levels of algorithmically generated "mutations"
+It is a set of 31 mutated genomes that are all based on the same source genome (e.g. named 'AG-359-G18_a5') but with different levels of algorithmically generated "mutations"
     So experiment AG-359-G18_a5.tar.gz:
-       Is a zipped folder containing 27 fastas named like:
-            AG-359-G18_a5_aad0000.fasta
-            AG-359-G18_a5_aad0005.fasta
-            AG-359-G18_a5_aad0010.fasta
+       Is a zipped folder containing 31 fastas named like:
+            AG-359-G18_a5_gnd0000.fasta
+            AG-359-G18_a5_gnd0005.fasta
+            AG-359-G18_a5_gnd0010.fasta
             etc.
-        Where the 'aad' number reflects its average amino acid distance from the source genome (again, caused by simulated amino acid changes, as made by Shayesteh)
+        Where the 'gnd' number reflects its general nucleotide distance from the source genome (again, caused by simulated random mutations, as made by Siavash et al.)
 
-    Note: The pipeline expects genomes with this specific namescheme: [experiment]_aad[number].fasta
+    Note: The pipeline expects genomes with this specific namescheme: [experiment]_gnd[number].fasta
 
 III. So what does this pipeline do?
 
@@ -31,49 +31,49 @@ III. So what does this pipeline do?
 
 
 IV. What command did I use to run this nextflow job?
-nextflow run 3b_hgt_pt2_pipeline.nf -profile charlie
+nextflow run 3b_siavash_pt2.nf -profile charlie
 
 BTW: ask me (Greg Gavelis, ggavelis@gbigelow.org) for more information if you want to run nextflow yourself.
 */
 
 params.dev = false // Lets user testrun nextflow command (by adding flag '--dev') which will have this pipeline run on JUST ONE SAG (again, as a test)
-params.num_inputs = 2
+params.num_inputs = 10
 
-params.outdir = "2000_maxhits"
+params.outdir = "results"
 params.prokka = "/mnt/scgc_nfs/ref/uniprot_swissprot_prokka.fasta"
 
 
 workflow {
-    CH_num_pair_AND_tar = Channel.fromPath("./input/*.tar.gz")
-            .flatten()
+    CH_num_pair_AND_tar = Channel.fromPath("./mid/2_gzipped_inputs/*.tar.gz")
+            .flatten()                                                                                      // Emit each demultiplexed fastq as its own object. E.g. blahblah_R1.fastq.gz
             .map { file -> tuple(file.simpleName, file) }
             //.view()
 
     CH_num_pair_AND_tar = CH_num_pair_AND_tar.take ( params.dev ? params.num_inputs : -1)
     
-    // Unzip each experiment (an experiment folder is based on a source genome with 27 permutations (i.e. 27 fastas.) Those permutations are genomes that have been algorithmically "mutated" to have various levels of amino acid distance 'aad' from the source genome.)
-    // E.g. for experiment named like "AG-359-G18_a5", there will be fastas like "AG-359-G18_a5_aad00000", "AG-359-G18_a5_aad00005", etc., where 'aad' represents the average amino acid distance from the source genome.
+    // Unzip each experiment (an experiment folder is based on a source genome with 31 permutations (i.e. 31 fastas.) Those permutations are genomes that have been algorithmically "mutated" to have various levels of general nucleotide distance 'gnd' from the source genome.)
+    // E.g. for experiment named like "AG-359-G18_a5", there will be fastas like "AG-359-G18_a5_gnd00000", "AG-359-G18_a5_gnd00005", etc., where 'gnd' represents the average general nucleotide distance from the source genome.
     UNZIP(CH_num_pair_AND_tar)
 
-    // Within an experiment, calculate the pairwise ANI between each of the 27 mutated genomes 
+    // Within an experiment, calculate the pairwise ANI between each of the 31 mutated genomes 
     PYANI(UNZIP.out.groupdir)
     TABULATE_ANI(PYANI.out)
 
-    // From unzipped directory, emit each of the 27 fastas individually, so that prokka can run separately on each.
-    // Why? ORFS must be named after their specific genome permutation e.g. ("AG-359-G18_a5_aad00000") so we can tell where they came from.
+    // From unzipped directory, emit each of the 31 fastas individually, so that prokka can run separately on each.
+    // Why? ORFS must be named after their specific genome permutation e.g. ("AG-359-G18_a5_gnd00000") so we can tell where they came from.
     CH_fastas = UNZIP.out.fastas.map{ it -> it[1]}.flatten()
     CH_ID_AAD_fasta = CH_fastas.map{ file -> tuple(file.getParent().toString().split('/')[12], file.simpleName, file) } 
     CH_ID_AAD_fasta = CH_ID_AAD_fasta.take ( params.dev ? params.num_inputs : -1)
     // Use prokka to find the ORFs in each genome -> .ffn files.
     PROKKA_v1_14_6(CH_ID_AAD_fasta)
 
-    // Group the ORFs files back together (all 27 back into the same experiment)
-    CH_ID_ORF = PROKKA_v1_14_6.out.map{ it -> tuple(it.simpleName.toString().replaceAll(/_aad(.+)/,''), it) }//derives the experiment ID by dropping filename characters starting at "_aad" (e.g. "AG-359-G18_a5_aad00000.fasta" -> "AG-359-G18_a5")
+    // Group the ORFs files back together (all 31 back into the same experiment)
+    CH_ID_ORF = PROKKA_v1_14_6.out.map{ it -> tuple(it.simpleName.toString().replaceAll(/_gnd(.+)/,''), it) }//derives the experiment ID by dropping filename characters starting at "_gnd" (e.g. "AG-359-G18_a5_gnd00000.fasta" -> "AG-359-G18_a5")
     CH_grouped_ORFS = CH_ID_ORF
                         .groupTuple() // groups all fastas together that share an experiment ID
                         //.view()
 
-    // In each experiment, count up all 27 genomes' worth of ORFS (To ask: Does number of detected ORFs vary across the 27 genome permutations?)
+    // In each experiment, count up all 31 genomes' worth of ORFS (To ask: Does number of detected ORFs vary across the 31 genome permutations?)
     COUNT_ORFS(CH_grouped_ORFS)
 
     // In each experiment, BLAST those ORFs against eachother (To ask: Is homology still detectable?)
@@ -81,10 +81,45 @@ workflow {
 
     CH_FINAL_TABLES = BLAST_ORFS_TO_SELF.out.join(TABULATE_ANI.out).join(COUNT_ORFS.out)
     SUMMARIZE_EXPERIMENT(CH_FINAL_TABLES)
+    CH_all_tables = SUMMARIZE_EXPERIMENT.out.csv.collect()
+    CH_each_alpha_AND_table = CH_all_tables.flatten().map{ it -> tuple(it.simpleName.replaceAll('_results','').replaceAll(/(.+)_a/,''), it)}
+    CH_grouped_by_alpha = CH_each_alpha_AND_table.groupTuple()
+
+    CH_table_vs_allTablesSameAlpha = CH_each_alpha_AND_table.combine(CH_grouped_by_alpha, by:0)
+    //CH_table_vs_allTablesSameAlpha.view()
+
+    //GGPLOT(CH_table_vs_allTablesSameAlpha)
     }
 
+
+
+process GGPLOT {
+    errorStrategy = 'finish'
+    beforeScript 'module load anaconda'
+    conda '/mnt/scgc/scgc_nfs/opt/common/anaconda3a/envs/r_ggplot2'
+    // env r_ggplot2 created like so: module load anaconda3; conda create --prefix /mnt/scgc/scgc_nfs/opt/common/anaconda3a/envs/r_ggplot2 conda-forge::r-ggpubr conda-forge::r-ggplot2 conda-forge::r-dplyr
+
+    input: tuple val(alpha), path(main_csv), path(other_csvs)
+    script:
+    """
+    #!/usr/bin/env Rscript
+
+    require(ggplot2);require(scales); require(reshape2); library(ggpubr);library(dplyr)
+
+    #a <- "5"
+    #bd <- read.csv(paste0("./result_tables_2000/AG-359-G18_a", a, "_results.csv"))
+    bd <- read.csv("${main_csv}")
+
+    for (g in "${other_csvs}") {
+    data <- read.csv(g)
+    bd <- rbind(bd, data)
+
+    head(bd)
+    """
+}
+
 process BLAST_ORFS_TO_SELF {
-    tag "All v. all BLAST for ORFs from experiment ${ID} (across all 27 mutated genomes)"
+    tag "All v. all BLAST for ORFs from experiment ${ID} (across all 31 mutated genomes)"
     cpus = 24
     memory = { 10.GB * task.attempt }
     errorStrategy = 'finish'
@@ -112,7 +147,7 @@ process BLAST_ORFS_TO_SELF {
     """ }
 
 process COUNT_ORFS {
-    tag "for experiment ${ID} make a table with the following columns: sag, gene_count, gene_count_500-1500bp (summarizing all 27 mutated genomes)"
+    tag "for experiment ${ID} make a table with the following columns: sag, gene_count, gene_count_500-1500bp (summarizing all 31 mutated genomes)"
     errorStrategy = 'finish'
     beforeScript 'module load anaconda3/2019.07'
     publishDir "results/${ID}/", mode: "copy"
@@ -170,7 +205,7 @@ process PROKKA_v1_14_6 {
     """ }
 
 process PYANI {
-    tag "calculate ANI between each genome permutation (all 27 mutated genomes from experiment ${ID})"
+    tag "calculate ANI between each genome permutation (all 31 mutated genomes from experiment ${ID})"
     cpus = 24
     memory = { 10.GB * task.attempt }
     errorStrategy = 'finish'
@@ -189,7 +224,9 @@ process SUMMARIZE_EXPERIMENT {
     publishDir "results/", mode: "copy"
     beforeScript 'module load anaconda3/2019.07'
     input: tuple val(ID), path(BLAST_tsv), path(ANI_csv), path(ORF_csv)
-    output: tuple val(ID), path("${ID}_results.csv")
+    output:
+        tuple val(ID), path("${ID}_results.csv"), emit: tuple
+        path("${ID}_results.csv"), emit: csv
     """
     #!/usr/bin/env python
 
@@ -372,7 +409,7 @@ process TABULATE_ANI {
 
 
 process UNZIP {
-    tag "Unzip all 27 mutated genomes from experiment ${ID}"
+    tag "Unzip all 31 mutated genomes from experiment ${ID}"
     beforeScript 'module load anaconda3/2019.07'
     input: tuple val(ID), path(targz)
     output:
