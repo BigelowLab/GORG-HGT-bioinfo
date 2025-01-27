@@ -49,10 +49,7 @@ workflow {
     CH_num_pair_AND_tar = Channel.fromPath("./mid/2_gzipped_inputs/*.tar.gz")
             .flatten()                                                                                      // Emit each demultiplexed fastq as its own object. E.g. blahblah_R1.fastq.gz
             .map { file -> tuple(file.simpleName, file) }
-            //.view()
 
-    //CH_num_pair_AND_tar = CH_num_pair_AND_tar.take ( params.dev ? params.num_inputs : -1)
-    
     // Unzip each experiment (an experiment folder is based on a source genome with 31 permutations (i.e. 31 fastas.) Those permutations are genomes that have been algorithmically "mutated" to have various levels of general nucleotide distance 'gnd' from the source genome.)
     // E.g. for experiment named like "AG-359-G18_a5", there will be fastas like "AG-359-G18_a5_gnd00000", "AG-359-G18_a5_gnd00005", etc., where 'gnd' represents the average general nucleotide distance from the source genome.
     UNZIP(CH_num_pair_AND_tar)
@@ -65,15 +62,11 @@ workflow {
     // Why? ORFS must be named after their specific genome permutation e.g. ("AG-359-G18_a5_gnd00000") so we can tell where they came from.
     CH_fastas = UNZIP.out.fastas.map{ it -> it[1]}.flatten()
     CH_ID_AAD_fasta = CH_fastas.map{ file -> tuple(file.getParent().toString().split('/')[12], file.simpleName, file) } 
-    //CH_ID_AAD_fasta = CH_ID_AAD_fasta.take ( params.dev ? params.num_inputs : -1)
-    // Use prokka to find the ORFs in each genome -> .ffn files.
-    PROKKA_v1_14_6(CH_ID_AAD_fasta)
+    PROKKA_v1_14_6(CH_ID_AAD_fasta) // Use prokka to find the ORFs in each genome -> .ffn files.
 
     // Group the ORFs files back together (all 31 back into the same experiment)
     CH_ID_ORF = PROKKA_v1_14_6.out.map{ it -> tuple(it.simpleName.toString().replaceAll(/_gnd(.+)/,''), it) }//derives the experiment ID by dropping filename characters starting at "_gnd" (e.g. "AG-359-G18_a5_gnd00000.fasta" -> "AG-359-G18_a5")
-    CH_grouped_ORFS = CH_ID_ORF
-                        .groupTuple() // groups all fastas together that share an experiment ID
-                        //.view()
+    CH_grouped_ORFS = CH_ID_ORF.groupTuple() // groups all fastas together that share an experiment ID
 
     // In each experiment, count up all 31 genomes' worth of ORFS (To ask: Does number of detected ORFs vary across the 31 genome permutations?)
     COUNT_ORFS(CH_grouped_ORFS)
@@ -262,7 +255,7 @@ process BLAST_ORFS_TO_SELF {
     memory = { 10.GB * task.attempt }
     errorStrategy = 'finish'
     publishDir "results/raw/${ID}/", mode: "copy"
-    beforeScript 'module load anaconda/2.1.0'
+    beforeScript 'module load anaconda/2.1.0' // load the environment in which BLAST is installed
     input: tuple val(ID), path(FILES)
     output:
         tuple val("${ID}"), path("${ID}_blast.tsv")
@@ -287,7 +280,7 @@ process BLAST_ORFS_TO_SELF {
 process COUNT_ORFS {
     tag "for experiment ${ID} make a table with the following columns: sag, gene_count, gene_count_500-1500bp (summarizing all 31 mutated genomes)"
     errorStrategy = 'finish'
-    beforeScript 'module load anaconda3/2019.07'
+    beforeScript 'module load anaconda3/2019.07' // python environment
     publishDir "results/raw/${ID}/", mode: "copy"
     input: tuple val(ID), path(FILES)
     output:
@@ -347,7 +340,7 @@ process PYANI {
     cpus = 24
     memory = { 10.GB * task.attempt }
     errorStrategy = 'finish'
-    beforeScript 'module load anaconda3/2019.07'
+    beforeScript 'module load anaconda3/2019.07' // environment with pyani v. 0.2.9 installed
     publishDir "results/raw/${ID}/", mode: "copy"
     input: tuple val(ID), path(unzip)
     output: tuple val(ID), path("${ID}_pyani")
@@ -360,7 +353,7 @@ process SUMMARIZE_EXPERIMENT {
     tag "Collate results into single table for experiment ${ID}"
     errorStrategy = 'finish'
     publishDir "results/raw/", mode: "copy"
-    beforeScript 'module load anaconda3/2019.07'
+    beforeScript 'module load anaconda3/2019.07'  // environment with pandas
     input: tuple val(ID), path(BLAST_tsv), path(ANI_csv), path(ORF_csv)
     output:
         tuple val(ID), path("${ID}_results.csv"), emit: tuple
@@ -480,7 +473,7 @@ process TABULATE_ANI {
     tag "Distill 4 pyANI tables into 1 for experiment ${ID}"
     errorStrategy = 'finish'
     publishDir "results/raw/${ID}/", mode: "copy"
-    beforeScript 'module load anaconda3/2019.07'
+    beforeScript 'module load anaconda3/2019.07' // environment with pandas
     input: tuple val(ID), path("DIR_ani")
     output: tuple val(ID), path("${ID}_ani.csv")
     """
