@@ -31,7 +31,7 @@ III. So what does this pipeline do?
 
 
 IV. What command did I use to run this nextflow job?
-nextflow run 3b_siavash_pt2.nf -profile charlie
+nextflow run orfs_vs_ani.nf
 
 BTW: ask me (Greg Gavelis, ggavelis@gbigelow.org) for more information if you want to run nextflow yourself.
 */
