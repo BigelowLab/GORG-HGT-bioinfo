@@ -1,10 +1,10 @@
 ## Part II: Comparing shared ORFs to ANI per genome (in LGT-free simulated genomes)
 
 ---  
-#### What it does: Calculates the number of orthologous genes per genome set at different pct_id thresholds.
-#### Why? To plot how the detectibility of homology erodes as genomes diverge in sequence space.
+#### What this pipeline does: Calculates the number of orthologous genes per genome set at different pct_id thresholds.
+#### Why? To plot how homology (or its detectability) erodes as genomes diverge in sequence space.
 
-#### High level steps:
+#### How it works:
 1. Takes a set of simulated LGT-free genomes. (All simulations are copies of the same real genome but with different numbers of point-mutations added in silico).
 2. Runs pyANI comparison of all genomes in the set to calculate Average Nucleotide Identity.
 4. Uses prokka to call genes (i.e. ORFs) for each genome.
@@ -22,7 +22,7 @@
   * What do the names mean?
     * The rootname [AG-359-G18] is the name of a real bacterial genome from the GORG-tropics dataset.
     * The first suffix (either [a5] or [a22]) represents the alpha value used in the model that simulated point mutations.
-    * The last suffix (e.g. [gnd001] vs. [gnd002]  represents the simulated genome's GND from the real genome.
+    * The last suffix (e.g. [gnd001] vs. [gnd002]) represents the simulated genome's GND from the real genome.
 * Outputs
   * For each input genome set, it produces a separate plot (see above).
   * Context: Our study examined 56 different genome sets, found here: [XXXX]. Each set contains 31 simulated genomes.
